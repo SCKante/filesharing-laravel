@@ -1,61 +1,18 @@
 services:
 
-  # ── Application PHP-FPM ──────────────────────────────────────────────────
+  # Single container : nginx + php-fpm + reverb (via supervisord)
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app
+      target: production
     container_name: filesharing_app
     restart: unless-stopped
     env_file: .env
+    environment:
+      PORT: "80"
+    ports:
+      - "80:80"
     volumes:
       - ./storage:/var/www/html/storage
       - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini:ro
-    entrypoint: ["/bin/sh", "/var/www/html/docker/entrypoint.sh"]
-    healthcheck:
-      test: ["CMD-SHELL", "php artisan --version > /dev/null 2>&1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    networks:
-      - filesharing
-
-  # ── Nginx (assets statiques intégrés dans l'image) ────────────────────────
-  nginx:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: webserver
-    container_name: filesharing_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - filesharing
-
-  # ── Reverb WebSocket ──────────────────────────────────────────────────────
-  reverb:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: app
-    container_name: filesharing_reverb
-    restart: unless-stopped
-    env_file: .env
-    command: php artisan reverb:start --host=0.0.0.0 --port=8080
-    expose:
-      - "8080"
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - filesharing
-
-networks:
-  filesharing:
-    driver: bridge

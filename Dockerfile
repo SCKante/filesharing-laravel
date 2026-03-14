@@ -11,10 +11,13 @@ COPY public/ ./public/
 
 RUN npm run build
 
-# ── Stage 2 : App PHP-FPM ────────────────────────────────────────────────────
-FROM php:8.3-fpm-alpine AS app
+# ── Stage 2 : Production — PHP-FPM + Nginx + Supervisord ─────────────────────
+FROM php:8.3-fpm-alpine AS production
 
 RUN apk add --no-cache \
+        nginx \
+        supervisor \
+        gettext \
         postgresql-dev \
         libpng-dev \
         libjpeg-turbo-dev \
@@ -34,7 +37,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Dépendances PHP (sans scripts post-install, sans dev)
+# Dépendances PHP
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
@@ -42,25 +45,18 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-script
 COPY . .
 COPY --from=assets /app/public/build ./public/build
 
-# Permissions
+# Permissions + setup
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
-    && chmod +x docker/entrypoint.sh
+    && chmod +x docker/entrypoint.sh \
+    # Nginx : vider la conf par défaut, préparer le dossier template
+    && rm -f /etc/nginx/conf.d/default.conf \
+    && mkdir -p /etc/nginx/templates \
+    && cp docker/nginx/default.conf /etc/nginx/templates/default.conf.template \
+    # Supervisord
+    && cp docker/supervisord.conf /etc/supervisord.conf
 
-EXPOSE 9000
-CMD ["php-fpm"]
-
-# ── Stage 3 : Nginx (assets statiques intégrés) ───────────────────────────────
-FROM nginx:1.27-alpine AS webserver
-
-# Vider la conf par défaut
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Assets statiques baked-in (public/ source + build/ depuis Node)
-COPY public/ /var/www/html/public/
-COPY --from=assets /app/public/build /var/www/html/public/build
-
-# Config nginx
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-
+# Railway injecte $PORT (défaut 80 en local)
 EXPOSE 80
+
+ENTRYPOINT ["/bin/sh", "/var/www/html/docker/entrypoint.sh"]
