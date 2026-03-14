@@ -3,6 +3,7 @@ set -e
 
 # ── Nginx : substituer $PORT dans la config template ─────────────────────────
 PORT="${PORT:-80}"
+mkdir -p /etc/nginx/conf.d
 envsubst '${PORT}' < /etc/nginx/templates/default.conf.template \
     > /etc/nginx/conf.d/default.conf
 
