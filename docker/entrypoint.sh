@@ -7,6 +7,15 @@ mkdir -p /etc/nginx/conf.d
 envsubst '${PORT}' < /etc/nginx/templates/default.conf.template \
     > /etc/nginx/conf.d/default.conf
 
+# ── Créer les dossiers runtime Laravel (absents car exclus du build context) ──
+mkdir -p storage/framework/views \
+         storage/framework/cache/data \
+         storage/framework/sessions \
+         storage/logs \
+         bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
 # ── Migrations (endpoint direct Neon, sans pooler) ───────────────────────────
 echo "▶ Migrations..."
 MIGRATE_HOST="${DB_HOST_DIRECT:-$DB_HOST}"

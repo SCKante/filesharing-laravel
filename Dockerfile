@@ -45,6 +45,13 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-script
 COPY . .
 COPY --from=assets /app/public/build ./public/build
 
+# Créer les dossiers runtime (exclus du build context via .dockerignore)
+RUN mkdir -p storage/framework/views \
+             storage/framework/cache/data \
+             storage/framework/sessions \
+             storage/logs \
+             bootstrap/cache
+
 # Permissions + setup
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
